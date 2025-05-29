@@ -1,0 +1,1154 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Persona 5-Inspired Rogue-Like RPG</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
+    body {
+      font-family: 'Bebas Neue', sans-serif;
+      background: linear-gradient(135deg, #1A1A1A 0%, #2A2A2A 100%);
+      color: #FFFFFF;
+      overflow-x: hidden;
+    }
+    .p5-border {
+      border: 4px solid #E60012;
+      box-shadow: 0 0 10px rgba(230, 0, 18, 0.5);
+      transform: skew(-5deg);
+    }
+    .p5-button {
+      background: #E60012;
+      color: #FFFFFF;
+      padding: 0.5rem 1rem;
+      border: 2px solid #FFFFFF;
+      transform: skew(-10deg);
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .p5-button:hover {
+      background: #FFFFFF;
+      color: #E60012;
+      box-shadow: 0 0 15px rgba(230, 0, 18, 0.7);
+      transform: skew(-10deg) scale(1.05);
+    }
+    .p5-button:active {
+      transform: skew(-10deg) scale(0.95);
+    }
+    .p5-panel {
+      background: #1A1A1A;
+      border: 4px solid #E60012;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+      transform: skew(-3deg);
+      padding: 1.5rem;
+      position: relative;
+    }
+    .p5-panel::before {
+      content: '';
+      position: absolute;
+      top: -10px;
+      left: -10px;
+      right: -10px;
+      bottom: -10px;
+      border: 2px solid #FFFFFF;
+      opacity: 0.3;
+      z-index: -1;
+    }
+    .p5-message {
+      background: url('data:image/svg+xml;charset=utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22100%22%20height%3D%22100%22%20viewBox%3D%220%200%20100%20100%22%3E%3Cpolygon%20%3D%22%20%200%200%20100%200%20100%22%20fill%3D%22white%22%20%3E%3C%2Fsvg%3E') no-repeat center/contain;
+      color: #000000;
+      padding: 1rem 2rem;
+      font-size: 1.25rem;
+      transform: skew(-5deg);
+      max-width: 80%;
+      margin: 1rem auto;
+      text-align: center;
+    }
+    .p5-starburst {
+      background: radial-gradient(circle, #E60012 0%, transparent 70%);
+      color: #FFFFFF;
+      font-size: 1.5rem;
+      padding: 0.5rem;
+      transform: rotate(-10deg);
+      animation: pulse 0.5s infinite alternate;
+    }
+    @keyframes pulse {
+      0% { transform: rotate(-10deg) scale(1); }
+      100% { transform: rotate(-10deg) scale(1.1); }
+    }
+    .enemy-turn {
+      animation: shake 0.3s ease-in-out;
+    }
+    @keyframes shake {
+      0% { transform: skew(-5deg) translateX(0); }
+      25% { transform: skew(-5deg) translateX(-10px); }
+      50% { transform: skew(-5deg) translateX(10px); }
+      75% { transform: skew(-5deg) translateX(-5px); }
+      100% { transform: skew(-5deg) translateX(0); }
+    }
+    .all-out-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      animation: fadeIn 0.5s ease-in;
+    }
+    .all-out-animation {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle, #E60012 10%, #000000 70%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      animation: spiral 1.5s ease-out;
+    }
+    .all-out-text {
+      font-size: 4rem;
+      color: #FFFFFF;
+      text-shadow: 0 0 10px #E60012;
+      transform: rotate(-10deg);
+      animation: zoomIn 0.5s ease-in;
+    }
+    .all-out-slash {
+      font-size: 2rem;
+      color: #FFFFFF;
+      position: absolute;
+      animation: slash 0.3s ease-in-out;
+    }
+    @keyframes fadeIn {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+    @keyframes spiral {
+      0% { transform: rotate(0deg) scale(0.5); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+    @keyframes zoomIn {
+      0% { transform: rotate(-10deg) scale(0); }
+      100% { transform: rotate(-10deg) scale(1); }
+    }
+    @keyframes slash {
+      0% { transform: translateX(-100px) rotate(-45deg); opacity: 0; }
+      100% { transform: translateX(100px) rotate(-45deg); opacity: 1; }
+    }
+    .shadow-standee {
+      font-size: 3rem;
+      text-align: center;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    .shadow-standee:hover {
+      transform: scale(1.1);
+    }
+    .shadow-standee.knocked-down {
+      filter: grayscale(100%);
+      transform: translateY(10px);
+      animation: shake 0.2s infinite;
+      cursor: default;
+    }
+    @keyframes shake {
+      0% { transform: translateY(10px) translateX(0); }
+      50% { transform: translateY(10px) translateX(5px); }
+      100% { transform: translateY(10px) translateX(0); }
+    }
+    .battle-menu {
+      background: #1A1A1A;
+      border: 4px solid #E60012;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+      padding: 1.5rem;
+      animation: slideIn 0.3s ease-out;
+      width: 80%;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    @keyframes slideIn {
+      0% { transform: translateY(-20px) skew(-5deg); opacity: 0; }
+      100% { transform: translateY(0) skew(-5deg); opacity: 1; }
+    }
+    .hidden { display: none; }
+    .disabled { pointer-events: none; opacity: 0.5; }
+
+.health-bar-container {
+  width: 100%;
+  background-color: #444;
+  border: 2px solid #E60012;
+  height: 20px;
+  margin-top: 5px;
+  position: relative;
+}
+
+.health-bar-fill {
+  background-color: #E60012;
+  height: 100%;
+  width: 100%;
+  transition: width 0.3s ease;
+
+#persona-summon.scale-100 {
+  transform: scale(1);
+
+}
+  </style>
+
+</head>
+
+<body class="flex flex-col items-center min-h-screen p-4">
+  <div class="w-full max-w-5xl">
+    <h1 class="text-5xl text-white p5-border p-4 text-center mb-6">PERSONA 5 ROGUE-LIKE RPG</h1>
+
+    <!-- Battle Preparation -->
+    <div id="preparation" class="p5-panel mb-6">
+      <h2 class="text-3xl text-red-600 mb-4">PREPARE FOR BATTLE</h2>
+      <div id="enemy-config" class="space-y-4">
+        <div class="enemy-slot flex space-x-4">
+          <label class="text-xl">SHADOW 1:</label>
+          <select class="enemy-type bg-black text-white p-2 p5-border">
+            <option value="Oni">👹 Oni</option>
+            <option value="Ghost">👻 Ghost</option>
+            <option value="Robot">🤖 Robot</option>
+            <option value="Dragon">🐉 Dragon</option>
+            <option value="Bat">🦇 Bat</option>
+          </select>
+          <select class="weakness bg-black text-white p-2 p5-border">
+            <option value="None">None</option>
+            <option value="Fire">🔥 Fire</option>
+            <option value="Ice">❄️ Ice</option>
+            <option value="Elec">⚡ Elec</option>
+            <option value="Wind">💨 Wind</option>
+          </select>
+          <select class="resistance bg-black text-white p-2 p5-border">
+            <option value="None">None</option>
+            <option value="Fire">🔥 Fire (Resist)</option>
+            <option value="Ice">❄️ Ice (Resist)</option>
+            <option value="Elec">⚡ Elec (Resist)</option>
+            <option value="Wind">💨 Wind (Resist)</option>
+            <option value="FireDrain">🔥 Fire (Drain)</option>
+            <option value="IceDrain">❄️ Ice (Drain)</option>
+            <option value="ElecDrain">⚡ Elec (Drain)</option>
+            <option value="WindDrain">💨 Wind (Drain)</option>
+            <option value="FireRepel">🔥 Fire (Repel)</option>
+            <option value="IceRepel">❄️ Ice (Repel)</option>
+            <option value="ElecRepel">⚡ Elec (Repel)</option>
+            <option value="WindRepel">💨 Wind (Repel)</option>
+          </select>
+        </div>
+        <div class="flex gap-4">
+          <button id="add-enemy" class="p5-button">ADD SHADOW</button>
+          <button id="randomize-enemies" class="p5-button">RANDOMIZE ENEMIES</button>
+        </div>
+      </div>
+      <div class="mt-4">
+        <label class="text-xl block">JOKER'S PERSONA:</label>
+        <select id="persona-select" class="bg-black text-white p-2 p5-border">
+          <option value="Odin">Odin</option>
+          <option value="Freyja">Freyja</option>
+        </select>
+      </div>
+      <div class="mt-4">
+        <label class="text-xl block">SKILL TREE (JOKER):</label>
+        <div id="skill-tree" class="flex flex-wrap gap-2"></div>
+      </div>
+      <div class="mt-4 text-xl">EXP: <span id="joker-exp">0</span></div>
+      <button id="start-battle" class="p5-button mt-4">ENGAGE!</button>
+    </div>
+
+    <!-- Battle Interface -->
+    <div id="battle" class="p5-panel mb-6 hidden">
+    <div id="character-sprite" class="absolute bottom-6 left-6 z-50">
+  <img id="turn-sprite" src="" alt="Character Turn Sprite" class="w-24 h-24 drop-shadow-lg">
+</div>
+
+<img id="persona-summon" src="" alt="Persona Summon"
+     class="w-24 h-24 absolute left-28 bottom-16 hidden transition-transform duration-300 ease-out scale-150 z-50">
+
+      <h2 class="text-3xl text-red-600 mb-4">COMBAT</h2>
+      <div id="party-stats" class="mb-4 space-y-2"></div>
+      <div id="enemies" class="flex justify-center gap-4 mb-4"></div>
+      <div id="battle-message" class="p5-message"></div>
+      <div id="battle-commands" class="battle-menu hidden">
+        <div class="flex flex-wrap gap-2">
+          <button id="attack" class="p5-button">ATTACK</button>
+          <button id="skills" class="p5-button">SKILLS</button>
+          <button id="persona" class="p5-button">PERSONA</button>
+          <button id="items" class="p5-button">ITEMS</button>
+          <button id="guard" class="p5-button">GUARD</button>
+          <button id="escape" class="p5-button">ESCAPE</button>
+        </div>
+      </div>
+      <div id="skill-menu" class="battle-menu hidden">
+        <h3 class="text-2xl text-red-600">SKILLS</h3>
+        <div id="skill-list" class="flex flex-wrap gap-2"></div>
+        <button id="back-skills" class="p5-button mt-2">BACK</button>
+      </div>
+      <div id="persona-menu" class="battle-menu hidden">
+        <h3 class="text-2xl text-red-600">SWITCH PERSONA</h3>
+        <div id="persona-list" class="flex flex-wrap gap-2"></div>
+        <button id="back-persona" class="p5-button mt-2">BACK</button>
+      </div>
+      <div id="item-menu" class="battle-menu hidden">
+        <h3 class="text-2xl text-red-600">ITEMS</h3>
+        <div id="item-list" class="flex flex-wrap gap-2"></div>
+        <button id="back-items" class="p5-button mt-2">BACK</button>
+      </div>
+      <div id="target-menu" class="battle-menu hidden">
+        <h3 class="text-2xl text-red-600">SELECT TARGET</h3>
+        <div id="target-list" class="flex flex-wrap gap-2"></div>
+        <button id="back-target" class="p5-button mt-2">BACK</button>
+      </div>
+      <div id="item-target-menu" class="battle-menu hidden">
+        <h3 class="text-2xl text-red-600">SELECT TARGET</h3>
+        <div id="item-target-list" class="flex flex-wrap gap-2"></div>
+        <button id="back-item-target" class="p5-button mt-2">BACK</button>
+      </div>
+      <div id="all-out-attack" class="battle-menu hidden">
+        <button id="all-out" class="p5-button text-2xl">ALL-OUT ATTACK!</button>
+      </div>
+      <div id="all-out-animation" class="all-out-container hidden">
+        <div class="all-out-animation">
+          <div class="all-out-text">ALL-OUT ATTACK!</div>
+          <div class="all-out-slash" style="top: 20%; left: 10%;">SLASH!</div>
+          <div class="all-out-slash" style="top: 40%; right: 10%;">BOOM!</div>
+          <div class="all-out-slash" style="bottom: 20%; left: 20%;">CRASH!</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Victory Screen -->
+    <div id="victory" class="hidden p5-panel">
+      <h2 class="text-3xl text-red-600 mb-4">VICTORY!</h2>
+      <div class="text-xl">REWARDS:</div>
+      <ul class="list-none ml-6 text-lg">
+        <li>+250 EXP (Joker)</li>
+        <li>¥5,000</li>
+        <li>MEDICINE x2</li>
+        <li>GEMSTONE x1</li>
+      </ul>
+      <button id="return-prep" class="p5-button mt-4">CONTINUE</button>
+    </div>
+
+    <script>
+      // Game Data
+      const personas = {
+        Odin: {
+          emoji: '⚡',
+          stats: { STR: 14, MAG: 16, END: 12, AGI: 15 },
+          skills: [
+            { name: 'Cleave 🗡️', type: 'Physical', sp: 8, power: 50, target: 'single', exp: 0 },
+            { name: 'Zio ⚡', type: 'Elec', sp: 6, power: 40, target: 'single', exp: 0 },
+            { name: 'Giant Slice ⚔️', type: 'Physical', sp: 12, power: 80, target: 'single', exp: 500 },
+            { name: 'Mazio ⚡⚡', type: 'Elec', sp: 14, power: 60, target: 'all', exp: 500 },
+            { name: 'Deathbound ⚔️⚔️', type: 'Physical', sp: 20, power: 120, target: 'single', exp: 1000 },
+            { name: 'Ziodyne ⚡⚡⚡', type: 'Elec', sp: 18, power: 100, target: 'single', exp: 1000 }
+          ]
+        },
+        Freyja: {
+          emoji: '🔥',
+          stats: { STR: 10, MAG: 18, END: 11, AGI: 14 },
+          skills: [
+            { name: 'Dia ❤️', type: 'Healing', sp: 4, power: 50, target: 'single', exp: 0 },
+            { name: 'Agi 🔥', type: 'Fire', sp: 6, power: 40, target: 'single', exp: 0 },
+            { name: 'Diarama ❤️❤️', type: 'Healing', sp: 8, power: 100, target: 'single', exp: 500 },
+            { name: 'Maragi 🔥🔥', type: 'Fire', sp: 12, power: 60, target: 'all', exp: 500 },
+            { name: 'Mediarama ❤️❤️❤️', type: 'Healing', sp: 16, power: 80, target: 'all', exp: 1000 },
+            { name: 'Agilao 🔥🔥', type: 'Fire', sp: 14, power: 100, target: 'single', exp: 1000 }
+          ]
+        },
+        Eos: {
+          emoji: '💨',
+          stats: { STR: 8, MAG: 14, END: 10, AGI: 16 },
+          skills: [
+            { name: 'Garu 💨', type: 'Wind', sp: 6, power: 40, target: 'single', exp: 0 },
+            { name: 'Magaru 💨💨', type: 'Wind', sp: 12, power: 60, target: 'all', exp: 0 },
+            { name: 'Dia ❤️', type: 'Healing', sp: 4, power: 50, target: 'single', exp: 0 }
+          ]
+        }
+      };
+
+      const party = {
+        Joker: { hp: 100, maxHP: 100, sp: 50, maxSP: 50, exp: 0, persona: 'Odin' },
+        Dolores: { hp: 80, maxHP: 80, sp: 40, maxSP: 40, persona: 'Eos' }
+      };
+
+      const inventory = { Medicine: 0, Gemstone: 0 };
+
+      let enemies = [];
+      let currentTurn = 'Joker';
+      let battleState = {
+        knockedDown: [],
+        maskBreak: false,
+        turnCount: 0,
+        oneMore: false,
+        oneMoreUsed: new Set()
+      };
+      let selectedAction = null;
+      let audioContext = null;
+
+      // DOM Elements
+      const preparation = document.getElementById('preparation');
+      const battle = document.getElementById('battle');
+      const victory = document.getElementById('victory');
+      const enemyConfig = document.getElementById('enemy-config');
+      const addEnemy = document.getElementById('add-enemy');
+      const randomizeEnemies = document.getElementById('randomize-enemies');
+      const startBattle = document.getElementById('start-battle');
+      const personaSelect = document.getElementById('persona-select');
+      const skillTree = document.getElementById('skill-tree');
+      const jokerExp = document.getElementById('joker-exp');
+      const partyStats = document.getElementById('party-stats');
+      const enemiesDiv = document.getElementById('enemies');
+      const battleMessage = document.getElementById('battle-message');
+      const battleCommands = document.getElementById('battle-commands');
+      const skillMenu = document.getElementById('skill-menu');
+      const skillList = document.getElementById('skill-list');
+      const personaMenu = document.getElementById('persona-menu');
+      const personaList = document.getElementById('persona-list');
+      const itemMenu = document.getElementById('item-menu');
+      const itemList = document.getElementById('item-list');
+      const targetMenu = document.getElementById('target-menu');
+      const targetList = document.getElementById('target-list');
+      const itemTargetMenu = document.getElementById('item-target-menu');
+      const itemTargetList = document.getElementById('item-target-list');
+      const allOutAttack = document.getElementById('all-out-attack');
+      const allOutAnimation = document.getElementById('all-out-animation');
+
+      // Sound Effects
+      function initAudioContext() {
+        if (!audioContext) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+const bgm = document.getElementById("bgm");
+bgm.volume = 0.5; // 0 ile 1 arasında. İstersen daha da kısabilirsin.
+
+        }
+      }
+
+      function playSound(type) {
+        initAudioContext();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        if (type === 'attack') {
+          oscillator.type = 'triangle';
+          oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+          gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+          oscillator.start();
+          oscillator.stop(audioContext.currentTime + 0.2);
+        } else if (type === 'allOut') {
+          oscillator.type = 'sine';
+          oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+          gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+          oscillator.start();
+          oscillator.stop(audioContext.currentTime + 0.5);
+        } else if (type === 'enemyHit') {
+          oscillator.type = 'square';
+          oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+          gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+          oscillator.start();
+          oscillator.stop(audioContext.currentTime + 0.15);
+        }
+      }
+
+      // Event Listeners
+      addEnemy.addEventListener('click', () => {
+        if (enemyConfig.children.length >= 4) return; // Max 3 enemies + button div
+        const slot = document.createElement('div');
+        slot.className = 'enemy-slot flex space-x-4 mt-2';
+        slot.innerHTML = `
+          <label class="text-xl">SHADOW ${enemyConfig.children.length}:</label>
+          <select class="enemy-type bg-black text-white p-2 p5-border">
+            <option value="Oni">👹 Oni</option>
+            <option value="Ghost">👻 Ghost</option>
+            <option value="Robot">🤖 Robot</option>
+            <option value="Dragon">🐉 Dragon</option>
+            <option value="Bat">🦇 Bat</option>
+          </select>
+          <select class="weakness bg-black text-white p-2 p5-border">
+            <option value="None">None</option>
+            <option value="Fire">🔥 Fire</option>
+            <option value="Ice">❄️ Ice</option>
+            <option value="Elec">⚡ Elec</option>
+            <option value="Wind">💨 Wind</option>
+          </select>
+          <select class="resistance bg-black text-white p-2 p5-border">
+            <option value="None">None</option>
+            <option value="Fire">🔥 Fire (Resist)</option>
+            <option value="Ice">❄️ Ice (Resist)</option>
+            <option value="Elec">⚡ Elec (Resist)</option>
+            <option value="Wind">💨 Wind (Resist)</option>
+            <option value="FireDrain">🔥 Fire (Drain)</option>
+            <option value="IceDrain">❄️ Ice (Drain)</option>
+            <option value="ElecDrain">⚡ Elec (Drain)</option>
+            <option value="WindDrain">💨 Wind (Drain)</option>
+            <option value="FireRepel">🔥 Fire (Repel)</option>
+            <option value="IceRepel">❄️ Ice (Repel)</option>
+            <option value="ElecRepel">⚡ Elec (Repel)</option>
+            <option value="WindRepel">💨 Wind (Repel)</option>
+          </select>
+        `;
+        enemyConfig.insertBefore(slot, enemyConfig.lastElementChild);
+      });
+
+      randomizeEnemies.addEventListener('click', () => {
+        while (enemyConfig.children.length > 1) {
+          enemyConfig.removeChild(enemyConfig.firstElementChild);
+        }
+        const enemyCount = Math.floor(Math.random() * 3) + 1;
+        const types = ['Oni', 'Ghost', 'Robot', 'Dragon', 'Bat'];
+        const weaknesses = ['None', 'Fire', 'Ice', 'Elec', 'Wind'];
+        const resistances = ['None', 'Fire', 'Ice', 'Elec', 'Wind', 'FireDrain', 'IceDrain', 'ElecDrain', 'WindDrain', 'FireRepel', 'IceRepel', 'ElecRepel', 'WindRepel'];
+        for (let i = 0; i < enemyCount; i++) {
+          const slot = document.createElement('div');
+          slot.className = 'enemy-slot flex space-x-4 mt-2';
+          const type = types[Math.floor(Math.random() * types.length)];
+          const weakness = weaknesses[Math.floor(Math.random() * weaknesses.length)];
+          const resistance = resistances[Math.floor(Math.random() * resistances.length)];
+          slot.innerHTML = `
+            <label class="text-xl">SHADOW ${i + 1}:</label>
+            <select class="enemy-type bg-black text-white p-2 p5-border">
+              <option value="Oni" ${type === 'Oni' ? 'selected' : ''}>👹 Oni</option>
+              <option value="Ghost" ${type === 'Ghost' ? 'selected' : ''}>👻 Ghost</option>
+              <option value="Robot" ${type === 'Robot' ? 'selected' : ''}>🤖 Robot</option>
+              <option value="Dragon" ${type === 'Dragon' ? 'selected' : ''}>🐉 Dragon</option>
+              <option value="Bat" ${type === 'Bat' ? 'selected' : ''}>🦇 Bat</option>
+            </select>
+            <select class="weakness bg-black text-white p-2 p5-border">
+              <option value="None" ${weakness === 'None' ? 'selected' : ''}>None</option>
+              <option value="Fire" ${weakness === 'Fire' ? 'selected' : ''}>🔥 Fire</option>
+              <option value="Ice" ${weakness === 'Ice' ? 'selected' : ''}>❄️ Ice</option>
+              <option value="Elec" ${weakness === 'Elec' ? 'selected' : ''}>⚡ Elec</option>
+              <option value="Wind" ${weakness === 'Wind' ? 'selected' : ''}>💨 Wind</option>
+            </select>
+            <select class="resistance bg-black text-white p-2 p5-border">
+              <option value="None" ${resistance === 'None' ? 'selected' : ''}>None</option>
+              <option value="Fire" ${resistance === 'Fire' ? 'selected' : ''}>🔥 Fire (Resist)</option>
+              <option value="Ice" ${resistance === 'Ice' ? 'selected' : ''}>❄️ Ice (Resist)</option>
+              <option value="Elec" ${resistance === 'Elec' ? 'selected' : ''}>⚡ Elec (Resist)</option>
+              <option value="Wind" ${resistance === 'Wind' ? 'selected' : ''}>💨 Wind (Resist)</option>
+              <option value="FireDrain" ${resistance === 'FireDrain' ? 'selected' : ''}>🔥 Fire (Drain)</option>
+              <option value="IceDrain" ${resistance === 'IceDrain' ? 'selected' : ''}>❄️ Ice (Drain)</option>
+              <option value="ElecDrain" ${resistance === 'ElecDrain' ? 'selected' : ''}>⚡ Elec (Drain)</option>
+              <option value="WindDrain" ${resistance === 'WindDrain' ? 'selected' : ''}>💨 Wind (Drain)</option>
+              <option value="FireRepel" ${resistance === 'FireRepel' ? 'selected' : ''}>🔥 Fire (Repel)</option>
+              <option value="IceRepel" ${resistance === 'IceRepel' ? 'selected' : ''}>❄️ Ice (Repel)</option>
+              <option value="ElecRepel" ${resistance === 'ElecRepel' ? 'selected' : ''}>⚡ Elec (Repel)</option>
+              <option value="WindRepel" ${resistance === 'WindRepel' ? 'selected' : ''}>💨 Wind (Repel)</option>
+            </select>
+          `;
+          enemyConfig.insertBefore(slot, enemyConfig.lastElementChild);
+        }
+      });
+
+      personaSelect.addEventListener('change', updateSkillTree);
+
+      startBattle.addEventListener('click', () => {
+        enemies = [];
+        const slots = document.querySelectorAll('.enemy-slot');
+        slots.forEach((slot, index) => {
+          const type = slot.querySelector('.enemy-type').value;
+          const weakness = slot.querySelector('.weakness').value;
+          const resistance = slot.querySelector('.resistance').value;
+          enemies.push({
+            name: `${type} ${index + 1}`,
+            type,
+            hp: 100,
+            maxHP: 100,
+            weakness,
+            resistance: resistance.replace('Drain', '').replace('Repel', ''),
+            drain: resistance.includes('Drain'),
+            repel: resistance.includes('Repel'),
+            knockedDown: false
+          });
+        });
+        party.Joker.persona = personaSelect.value;
+        party.Joker.hp = Math.floor(party.Joker.maxHP * 0.5);
+        party.Joker.sp = Math.floor(party.Joker.maxSP * 0.5);
+        party.Dolores.hp = Math.floor(party.Dolores.maxHP * 0.5);
+        party.Dolores.sp = Math.floor(party.Dolores.maxSP * 0.5);
+        preparation.classList.add('hidden');
+        battle.classList.remove('hidden');
+        updateBattleUI();
+        battleMessage.textContent = "SHOWTIME!";
+        startPlayerTurn('Joker');
+      });
+
+      document.getElementById('attack').addEventListener('click', () => {
+        selectedAction = { type: 'Attack' };
+        showTargetMenu();
+      });
+
+      document.getElementById('skills').addEventListener('click', showSkillMenu);
+      document.getElementById('persona').addEventListener('click', showPersonaMenu);
+      document.getElementById('items').addEventListener('click', showItemMenu);
+      document.getElementById('guard').addEventListener('click', () => {
+        battleMessage.textContent = `${currentTurn} GUARDS!`;
+        endTurn();
+      });
+      document.getElementById('escape').addEventListener('click', () => {
+        if (Math.random() < 0.5) {
+          battleMessage.textContent = "GOT AWAY SAFELY!";
+          setTimeout(() => {
+            battle.classList.add('hidden');
+            preparation.classList.remove('hidden');
+            updateSkillTree();
+          }, 1000);
+        } else {
+          battleMessage.textContent = "CAN'T ESCAPE!";
+          endTurn();
+        }
+      });
+      document.getElementById('back-skills').addEventListener('click', () => {
+        skillMenu.classList.add('hidden');
+        battleCommands.classList.remove('hidden');
+      });
+      document.getElementById('back-persona').addEventListener('click', () => {
+        personaMenu.classList.add('hidden');
+        battleCommands.classList.remove('hidden');
+      });
+      document.getElementById('back-items').addEventListener('click', () => {
+        itemMenu.classList.add('hidden');
+        battleCommands.classList.remove('hidden');
+      });
+      document.getElementById('back-target').addEventListener('click', () => {
+        targetMenu.classList.add('hidden');
+        if (selectedAction && selectedAction.type === 'Skill') {
+          skillMenu.classList.remove('hidden');
+        } else {
+          battleCommands.classList.remove('hidden');
+        }
+        selectedAction = null;
+        battleMessage.textContent = `${currentTurn}'S TURN!`;
+      });
+      document.getElementById('back-item-target').addEventListener('click', () => {
+        itemTargetMenu.classList.add('hidden');
+        itemMenu.classList.remove('hidden');
+        selectedAction = null;
+        battleMessage.textContent = `${currentTurn}'S TURN!`;
+      });
+      document.getElementById('all-out').addEventListener('click', allOut);
+      document.getElementById('return-prep').addEventListener('click', () => {
+        victory.classList.add('hidden');
+        preparation.classList.remove('hidden');
+        party.Joker.hp = Math.floor(party.Joker.maxHP * 0.5);
+        party.Joker.sp = Math.floor(party.Joker.maxSP * 0.5);
+        party.Dolores.hp = Math.floor(party.Dolores.maxHP * 0.5);
+        party.Dolores.sp = Math.floor(party.Dolores.maxSP * 0.5);
+        updateSkillTree();
+        updateBattleUI();
+      });
+
+      // Functions
+      function updateSkillTree() {
+        const persona = personas[personaSelect.value];
+        skillTree.innerHTML = persona.skills.map(skill => `
+          <div class="p5-button inline-block ${party.Joker.exp < skill.exp ? 'disabled' : ''}">
+            ${skill.name} (${skill.sp} SP) ${party.Joker.exp < skill.exp ? `[${skill.exp} EXP]` : ''}
+          </div>
+        `).join('');
+      }
+
+      function updateBattleUI() {
+       partyStats.innerHTML = `
+  <div class="p5-border p-2">
+    JOKER ${personas[party.Joker.persona].emoji}: ${party.Joker.hp}/${party.Joker.maxHP} HP | ${party.Joker.sp}/${party.Joker.maxSP} SP | EXP: ${party.Joker.exp}
+    <div class="health-bar-container">
+      <div class="health-bar-fill" style="width: ${Math.floor(party.Joker.hp / party.Joker.maxHP * 100)}%;"></div>
+    </div>
+  </div>
+  <div class="p5-border p-2">
+    DOLORES ${personas.Eos.emoji}: ${party.Dolores.hp}/${party.Dolores.maxHP} HP | ${party.Dolores.sp}/${party.Dolores.maxSP} SP
+    <div class="health-bar-container">
+      <div class="health-bar-fill" style="width: ${Math.floor(party.Dolores.hp / party.Dolores.maxHP * 100)}%;"></div>
+    </div>
+  </div>
+`;
+        enemiesDiv.innerHTML = enemies.map(enemy => `
+          <div class="shadow-standee ${enemy.knockedDown ? 'knocked-down' : ''}" data-name="${enemy.name}">
+            <div class="text-4xl">${enemy.type === 'Oni' ? '👹' : enemy.type === 'Ghost' ? '👻' : enemy.type === 'Robot' ? '🤖' : enemy.type === 'Dragon' ? '🐉' : '🦇'}</div>
+            <div class="text-lg">${enemy.name}</div>
+            <div class="p5-border p-1">${enemy.hp}/${enemy.maxHP} HP</div>
+          </div>
+        `).join('');
+        enemiesDiv.querySelectorAll('.shadow-standee:not(.knocked-down)').forEach(standee => {
+          standee.addEventListener('click', () => {
+            if (selectedAction && !standee.classList.contains('knocked-down')) {
+              const target = standee.dataset.name;
+              if (selectedAction.type === 'Attack') {
+                performAttack(target);
+              } else if (selectedAction.type === 'Skill') {
+                performSkill(selectedAction.skill, target);
+              }
+              targetMenu.classList.add('hidden');
+              selectedAction = null;
+            }
+          });
+        });
+        allOutAttack.classList.toggle('hidden', !enemies.every(enemy => enemy.knockedDown && enemy.hp > 0));
+      }
+
+      function startPlayerTurn(character) {
+        currentTurn = character;
+        const sprite = document.getElementById('turn-sprite');
+
+        // Set the sprite image based on who’s turn it is
+        if (character === 'Dolores') {
+          sprite.src = 'dolores-back.png'; // 🔁 your actual file name
+        } else if (character === 'Joker') {
+          sprite.src = 'joker-back.png'; // 🔁 your actual file name
+        }
+
+        battleCommands.classList.remove('hidden');
+        skillMenu.classList.add('hidden');
+        personaMenu.classList.add('hidden');
+        itemMenu.classList.add('hidden');
+        targetMenu.classList.add('hidden');
+        itemTargetMenu.classList.add('hidden');
+        allOutAttack.classList.add('hidden');
+        allOutAnimation.classList.add('hidden');
+        selectedAction = null;
+        if (battleState.oneMore) {
+          battleMessage.classList.remove('enemy-turn');
+          battleMessage.innerHTML = `<span class="p5-starburst">1 MORE!</span> ${currentTurn}'S TURN!`;
+          battleState.oneMore = false;
+        } else {
+          battleMessage.classList.remove('enemy-turn');
+          battleMessage.textContent = `${currentTurn}'S TURN!`;
+        }
+        document.getElementById('persona').classList.toggle('disabled', currentTurn === 'Dolores');
+        updateBattleUI();
+      }
+
+      function showSkillMenu() {
+        battleCommands.classList.add('hidden');
+	const personaImg = document.getElementById('persona-summon');
+
+// Only show persona if it's Joker's turn
+if (currentTurn === 'Joker') {
+  if (party.Joker.persona === 'Odin') {
+    personaImg.src = 'odin.png';
+  } else if (party.Joker.persona === 'Freyja') {
+    personaImg.src = 'freyja.png';
+  }
+
+  personaImg.classList.remove('hidden');
+  personaImg.classList.remove('scale-150');
+  personaImg.classList.add('scale-100');
+
+  setTimeout(() => {
+    personaImg.classList.add('hidden');
+    personaImg.classList.remove('scale-100');
+    personaImg.classList.add('scale-150');
+  }, 1000);
+}
+
+        skillMenu.classList.remove('hidden');
+        const persona = personas[currentTurn === 'Joker' ? party.Joker.persona : 'Eos'];
+        const skills = currentTurn === 'Joker' ? persona.skills.filter(skill => party.Joker.exp >= skill.exp) : persona.skills;
+        skillList.innerHTML = skills.map(skill => `
+          <button class="skill p5-button ${party[currentTurn].sp < skill.sp ? 'disabled' : ''}" data-skill="${skill.name}">
+            ${skill.name} (${skill.sp} SP)
+          </button>
+        `).join('');
+        skillList.querySelectorAll('.skill').forEach(button => {
+          button.addEventListener('click', () => {
+            if (!button.classList.contains('disabled')) {
+              const skill = persona.skills.find(s => s.name === button.dataset.skill);
+              if (skill.target === 'all') {
+                performSkill(skill.name, 'all');
+                skillMenu.classList.add('hidden');
+              } else if (skill.type === 'Healing') {
+                showItemTargetMenu();
+                selectedAction = { type: 'Skill', skill: button.dataset.skill };
+              } else {
+                selectedAction = { type: 'Skill', skill: button.dataset.skill };
+                showTargetMenu();
+              }
+            }
+          });
+        });
+      }
+
+      function showPersonaMenu() {
+        if (currentTurn === 'Dolores') return;
+        battleCommands.classList.add('hidden');
+        personaMenu.classList.remove('hidden');
+        personaList.innerHTML = ['Odin', 'Freyja'].map(name => `
+          <button class="persona p5-button" data-persona="${name}">
+            ${name}
+          </button>
+        `).join('');
+        personaList.querySelectorAll('.persona').forEach(button => {
+          button.addEventListener('click', () => {
+            party.Joker.persona = button.dataset.persona;
+            battleMessage.textContent = `SUMMONED ${party.Joker.persona.toUpperCase()}!`;
+            const personaImg = document.getElementById('persona-summon');
+
+// Set image source based on the selected persona
+if (party.Joker.persona === 'Odin') {
+  personaImg.src = 'odin.png'; // Change to your file name
+} else if (party.Joker.persona === 'Freyja') {
+  personaImg.src = 'freyja.png'; // Change to your file name
+}
+
+// Show the summon image
+personaImg.classList.remove('hidden');
+personaImg.classList.remove('scale-150');
+personaImg.classList.add('scale-100'); // Make sure to define .scale-100 in CSS
+
+// Hide it after 1 second
+setTimeout(() => {
+  personaImg.classList.add('hidden');
+  personaImg.classList.remove('scale-100');
+  personaImg.classList.add('scale-150');
+}, 1000);
+
+ personaMenu.classList.add('hidden');
+            endTurn();
+          });
+        });
+      }
+
+      function showItemMenu() {
+        battleCommands.classList.add('hidden');
+        itemMenu.classList.remove('hidden');
+        itemList.innerHTML = [
+          { name: 'Medicine', desc: `MEDICINE (${inventory.Medicine})`, effect: 'Heal 50 HP' },
+          { name: 'Gemstone', desc: `GEMSTONE (${inventory.Gemstone})`, effect: 'Break Defenses' }
+        ].filter(item => inventory[item.name] > 0).map(item => `
+          <button class="item p5-button ${inventory[item.name] === 0 ? 'disabled' : ''}" data-item="${item.name}">
+            ${item.desc}
+          </button>
+        `).join('');
+        itemList.querySelectorAll('.item').forEach(button => {
+          button.addEventListener('click', () => {
+            if (!button.classList.contains('disabled')) {
+              selectedAction = { type: 'Item', item: button.dataset.item };
+              if (button.dataset.item === 'Medicine') {
+                showItemTargetMenu();
+              } else {
+                useItem(button.dataset.item, null);
+                itemMenu.classList.add('hidden');
+              }
+            }
+          });
+        });
+      }
+
+      function showTargetMenu() {
+        battleCommands.classList.add('hidden');
+        skillMenu.classList.add('hidden');
+        targetMenu.classList.remove('hidden');
+        battleMessage.textContent = "SELECT TARGET!";
+        targetList.innerHTML = enemies
+          .filter(enemy => !enemy.knockedDown && enemy.hp > 0)
+          .map(enemy => `
+            <button class="target p5-button" data-target="${enemy.name}">
+              ${enemy.name}
+            </button>
+          `).join('');
+        targetList.querySelectorAll('.target').forEach(button => {
+          button.addEventListener('click', () => {
+            if (selectedAction.type === 'Attack') {
+              performAttack(button.dataset.target);
+            } else if (selectedAction.type === 'Skill') {
+              performSkill(selectedAction.skill, button.dataset.target);
+            }
+            targetMenu.classList.add('hidden');
+            selectedAction = null;
+          });
+        });
+      }
+
+      function showItemTargetMenu() {
+        battleCommands.classList.add('hidden');
+        skillMenu.classList.add('hidden');
+        itemMenu.classList.add('hidden');
+        itemTargetMenu.classList.remove('hidden');
+        battleMessage.textContent = "SELECT TARGET!";
+        itemTargetList.innerHTML = Object.keys(party)
+          .filter(char => party[char].hp > 0)
+          .map(char => `
+            <button class="item-target p5-button" data-target="${char}">
+              ${char}
+            </button>
+          `).join('');
+        itemTargetList.querySelectorAll('.item-target').forEach(button => {
+          button.addEventListener('click', () => {
+            if (selectedAction.type === 'Item') {
+              useItem(selectedAction.item, button.dataset.target);
+            } else if (selectedAction.type === 'Skill') {
+              performSkill(selectedAction.skill, button.dataset.target);
+            }
+            itemTargetMenu.classList.add('hidden');
+            selectedAction = null;
+          });
+        });
+      }
+
+      function performAttack(target) {
+        playSound('attack');
+        const enemy = enemies.find(e => e.name === target);
+        const damage = Math.floor(personas[party[currentTurn].persona].stats.STR * 2);
+        enemy.hp = Math.max(0, enemy.hp - damage);
+        battleMessage.innerHTML = `<span class="p5-starburst">BANG!</span> ${currentTurn} HITS ${target} FOR ${damage} DAMAGE!`;
+        checkKnockDown(enemy);
+        updateBattleUI();
+        endTurn();
+      }
+
+      function performSkill(skillName, target) {
+        playSound('attack');
+	// Summon effect if Joker uses the skill
+if (currentTurn === 'Joker') {
+  const personaImg = document.getElementById('persona-summon');
+  if (party.Joker.persona === 'Odin') {
+    personaImg.src = 'odin.png';
+  } else if (party.Joker.persona === 'Freyja') {
+    personaImg.src = 'freyja.png';
+  }
+
+  personaImg.classList.remove('hidden');
+  personaImg.classList.remove('scale-150');
+  personaImg.classList.add('scale-100');
+
+  setTimeout(() => {
+    personaImg.classList.add('hidden');
+    personaImg.classList.remove('scale-100');
+    personaImg.classList.add('scale-150');
+  }, 1000);
+}
+
+        const persona = personas[party[currentTurn].persona];
+        const skill = persona.skills.find(s => s.name === skillName);
+        if (party[currentTurn].sp < skill.sp || (currentTurn === 'Joker' && party.Joker.exp < skill.exp)) return;
+        party[currentTurn].sp -= skill.sp;
+        if (skill.type === 'Healing') {
+          const targetChar = party[target];
+          targetChar.hp = Math.min(targetChar.maxHP, targetChar.hp + skill.power);
+          battleMessage.innerHTML = `<span class="p5-starburst">HEAL!</span> ${currentTurn} CASTS ${skillName}, RESTORING ${skill.power} HP TO ${target}!`;
+        } else {
+          const targets = target === 'all' ? enemies : [enemies.find(e => e.name === target)];
+          targets.forEach(enemy => {
+            let damage = skill.power;
+            let message = `<span class="p5-starburst">${skillName.toUpperCase()}!</span> ${currentTurn} TARGETS ${enemy.name}! `;
+if (enemy.hp <= 0) return;
+
+let isWeak = enemy.weakness === skill.type;
+let isResist = enemy.resistance === skill.type;
+let isDrain = enemy.drain && isResist;
+let isRepel = enemy.repel && isResist;
+
+if (isWeak && !battleState.oneMoreUsed.has(enemy.name)) {
+  damage *= 2;
+  enemy.knockedDown = true;
+  battleState.oneMore = true;
+  battleState.oneMoreUsed.add(enemy.name);
+  message += `<span class="p5-starburst">WEAK!</span> `;
+}
+
+if (isDrain) {
+  enemy.hp = Math.min(enemy.maxHP, enemy.hp + damage);
+  message += `${enemy.name} DRAINS THE ATTACK!`;
+} else if (isRepel) {
+  party[currentTurn].hp = Math.max(0, party[currentTurn].hp - damage);
+  message += `${enemy.name} REPELS THE ATTACK!`;
+} else {
+  if (isResist && !isDrain && !isRepel) {
+    damage *= 0.5;
+    message += `RESISTED... `;
+  }
+  enemy.hp = Math.max(0, enemy.hp - damage);
+  message += `${damage} DAMAGE!`;
+}
+
+            if (!enemy.drain && !enemy.repel) {
+              enemy.hp = Math.max(0, enemy.hp - damage);
+              message += `${damage} DAMAGE!`;
+            }
+            battleMessage.innerHTML = message;
+            checkKnockDown(enemy);
+          });
+        }
+        updateBattleUI();
+        endTurn();
+      }
+
+      function useItem(item, target) {
+        if (inventory[item] <= 0) return;
+        inventory[item]--;
+        if (item === 'Medicine' && target) {
+          const targetChar = party[target];
+          targetChar.hp = Math.min(targetChar.maxHP, targetChar.hp + 50);
+          battleMessage.innerHTML = `<span class="p5-starburst">ITEM!</span> ${currentTurn} USES MEDICINE, RESTORING 50 HP TO ${target}!`;
+        } else if (item === 'Gemstone') {
+          enemies.forEach(enemy => {
+            enemy.resistance = 'None';
+            enemy.drain = false;
+            enemy.repel = false;
+          });
+          battleMessage.innerHTML = `<span class="p5-starburst">MASK BREAK!</span> ${currentTurn} SHATTERS ALL SHADOW DEFENSES!`;
+        }
+        updateBattleUI();
+        endTurn();
+      }
+
+      function checkKnockDown(enemy) {
+        if (enemy.hp <= 0) enemy.knockedDown = true;
+      }
+
+      function endTurn() {
+        if (battleState.oneMore) {
+          startPlayerTurn(currentTurn);
+          return;
+        }
+        battleState.turnCount++;
+        if (enemies.every(enemy => enemy.hp <= 0)) {
+          endBattle();
+          return;
+        }
+        if (currentTurn === 'Joker') {
+          startPlayerTurn('Dolores');
+        } else {
+          enemyTurn();
+        }
+      }
+
+      function enemyTurn() {
+        battleMessage.classList.add('enemy-turn');
+        battleMessage.innerHTML = `<span class="p5-starburst">ENEMY TURN!</span>`;
+        setTimeout(() => {
+          const aliveEnemies = enemies.filter(e => e.hp > 0);
+          if (aliveEnemies.length === 0) {
+            endBattle();
+            return;
+          }
+          const enemy = aliveEnemies[Math.floor(Math.random() * aliveEnemies.length)];
+          const damage = 15;
+          const target = Math.random() < 0.5 ? 'Joker' : 'Dolores';
+          if (party[target].hp > 0) {
+            playSound('enemyHit');
+            party[target].hp = Math.max(0, party[target].hp - damage);
+            battleMessage.innerHTML = `<span class="p5-starburst">ENEMY STRIKE!</span> ${enemy.name} HITS ${target} FOR ${damage} DAMAGE!`;
+          } else {
+            battleMessage.innerHTML = `<span class="p5-starburst">ENEMY STRIKE!</span> ${enemy.name} ATTACKS, BUT ${target} IS DOWN!`;
+          }
+          updateBattleUI();
+          if (party.Joker.hp <= 0 && party.Dolores.hp <= 0) {
+            battleMessage.textContent = "GAME OVER! RUN RESET!";
+            party.Joker.exp = 0;
+            setTimeout(() => {
+              battle.classList.add('hidden');
+              preparation.classList.remove('hidden');
+              updateSkillTree();
+              resetBattle();
+            }, 1000);
+          } else {
+            startPlayerTurn('Joker');
+          }
+        }, 500);
+      }
+
+      function allOut() {
+        playSound('allOut');
+        allOutAnimation.classList.remove('hidden');
+        setTimeout(() => {
+          allOutAnimation.classList.add('hidden');
+          enemies.forEach(enemy => enemy.hp = 0);
+          battleMessage.textContent = "ALL-OUT ATTACK! SHADOWS VANQUISHED!";
+          updateBattleUI();
+          endBattle();
+        }, 1500);
+      }
+
+      function endBattle() {
+        party.Joker.exp += 250;
+        inventory.Medicine += 2;
+        inventory.Gemstone += 1;
+        updateBattleUI();
+        setTimeout(() => {
+          battle.classList.add('hidden');
+          victory.classList.remove('hidden');
+        }, 1000);
+      }
+
+      function resetBattle() {
+        party.Joker.hp = Math.floor(party.Joker.maxHP * 0.5);
+        party.Joker.sp = Math.floor(party.Joker.maxSP * 0.5);
+        party.Dolores.hp = Math.floor(party.Dolores.maxHP * 0.5);
+        party.Dolores.sp = Math.floor(party.Dolores.maxSP * 0.5);
+        enemies = [];
+        battleState = { knockedDown: [], maskBreak: false, turnCount: 0, oneMore: false, oneMoreUsed: new Set() };
+        currentTurn = 'Joker';
+      }
+
+      // Initialize
+      updateSkillTree();
+    </script>
+<script>
+document.body.addEventListener('click', () => {
+  const bgm = document.getElementById("bgm");
+  bgm.volume = 0.5;
+  if (bgm.paused) {
+    bgm.play().then(() => {
+      console.log("Müzik başladı.");
+    }).catch(e => {
+      console.warn("Müzik başlatılamadı:", e);
+    });
+  }
+});
+</script>
+
+	<audio id="bgm" src="battle-theme.mp3" loop autoplay></audio>
+</body>
+</html>
