@@ -117,9 +117,45 @@
       0% { transform: rotate(-10deg) scale(1); }
       100% { transform: rotate(-10deg) scale(1.1); }
     }
+@keyframes personaAttack {
+  0% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(20px) scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.attack-move {
+  animation: personaAttack 0.6s ease-in-out;
+}
+
     .enemy-turn {
       animation: shake 0.3s ease-in-out;
-    }
+    }@keyframes personaAttack {
+  0% {
+    transform: translateX(0) scale(1.2);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(30px) scale(1.3);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0) scale(1.2);
+    opacity: 0;
+  }
+}
+
+.persona-attack-move {
+  animation: personaAttack 0.6s ease forwards;
+}
     @keyframes shake {
       0% { transform: skew(-5deg) translateX(0); }
       25% { transform: skew(-5deg) translateX(-10px); }
@@ -164,6 +200,15 @@
       position: absolute;
       animation: slash 0.3s ease-in-out;
     }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-10px); }
+  40%, 80% { transform: translateX(10px); }
+}
+
+.shake-animation {
+  animation: shake 0.5s ease;
+}
     @keyframes fadeIn {
       0% { opacity: 0; }
       100% { opacity: 1; }
@@ -201,6 +246,7 @@
       100% { transform: translateY(10px) translateX(0); }
     }
     .battle-menu {
+      z-index: 60;
       background: #1A1A1A;
       border: 4px solid #E60012;
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
@@ -209,6 +255,7 @@
       width: 80%;
       max-width: 600px;
       margin: 0 auto;
+
     }
     @keyframes slideIn {
       0% { transform: translateY(-20px) skew(-5deg); opacity: 0; }
@@ -216,6 +263,11 @@
     }
     .hidden { display: none; }
     .disabled { pointer-events: none; opacity: 0.5; }
+
+}
+#persona-summon {
+  z-index: 20 !important;
+}
 
 .health-bar-container {
   width: 100%;
@@ -231,13 +283,32 @@
   height: 100%;
   width: 100%;
   transition: width 0.3s ease;
+}
 
 #persona-summon.scale-100 {
   transform: scale(1);
-
 }
-  </style>
+ @keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
 
+#persona-summon {
+  animation: float 3s ease-in-out infinite;
+}
+
+<style>
+
+.skill-card.selected {
+  border-color: #E60012;
+  background: linear-gradient(to bottom right, #2a2a2a, #E60012);
+  box-shadow: 0 0 15px #E60012;
+}
+</style>
 </head>
 
 <body class="flex flex-col items-center min-h-screen p-4">
@@ -286,28 +357,30 @@
         </div>
       </div>
       <div class="mt-4">
-        <label class="text-xl block">JOKER'S PERSONA:</label>
+        <label class="text-xl block">Protag'S PERSONA:</label>
         <select id="persona-select" class="bg-black text-white p-2 p5-border">
           <option value="Odin">Odin</option>
           <option value="Freyja">Freyja</option>
         </select>
       </div>
       <div class="mt-4">
-        <label class="text-xl block">SKILL TREE (JOKER):</label>
-        <div id="skill-tree" class="flex flex-wrap gap-2"></div>
+        <label class="text-xl block">SKILL TREE (Protag):</label>
+        <div id="skill-tree" class="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4"></div>
       </div>
-      <div class="mt-4 text-xl">EXP: <span id="joker-exp">0</span></div>
+      <div class="mt-4 text-xl">EXP: <span id="Protag-exp">0</span></div>
       <button id="start-battle" class="p5-button mt-4">ENGAGE!</button>
     </div>
 
     <!-- Battle Interface -->
     <div id="battle" class="p5-panel mb-6 hidden">
     <div id="character-sprite" class="absolute bottom-6 left-6 z-50">
-  <img id="turn-sprite" src="" alt="Character Turn Sprite" class="w-24 h-24 drop-shadow-lg">
+  <img id="turn-sprite" src="" alt="Character Turn Sprite" class="w-48 h-48 drop-shadow-lg">
+
 </div>
 
 <img id="persona-summon" src="" alt="Persona Summon"
-     class="w-24 h-24 absolute left-28 bottom-16 hidden transition-transform duration-300 ease-out scale-150 z-50">
+     class="w-40 h-40 absolute left-0 bottom-20 hidden transition-transform duration-300 ease-out z-50">
+
 
       <h2 class="text-3xl text-red-600 mb-4">COMBAT</h2>
       <div id="party-stats" class="mb-4 space-y-2"></div>
@@ -366,7 +439,7 @@
       <h2 class="text-3xl text-red-600 mb-4">VICTORY!</h2>
       <div class="text-xl">REWARDS:</div>
       <ul class="list-none ml-6 text-lg">
-        <li>+250 EXP (Joker)</li>
+        <li>+250 EXP (Protag)</li>
         <li>¥5,000</li>
         <li>MEDICINE x2</li>
         <li>GEMSTONE x1</li>
@@ -376,51 +449,54 @@
 
     <script>
       // Game Data
-      const personas = {
-        Odin: {
-          emoji: '⚡',
-          stats: { STR: 14, MAG: 16, END: 12, AGI: 15 },
-          skills: [
-            { name: 'Cleave 🗡️', type: 'Physical', sp: 8, power: 50, target: 'single', exp: 0 },
-            { name: 'Zio ⚡', type: 'Elec', sp: 6, power: 40, target: 'single', exp: 0 },
-            { name: 'Giant Slice ⚔️', type: 'Physical', sp: 12, power: 80, target: 'single', exp: 500 },
-            { name: 'Mazio ⚡⚡', type: 'Elec', sp: 14, power: 60, target: 'all', exp: 500 },
-            { name: 'Deathbound ⚔️⚔️', type: 'Physical', sp: 20, power: 120, target: 'single', exp: 1000 },
-            { name: 'Ziodyne ⚡⚡⚡', type: 'Elec', sp: 18, power: 100, target: 'single', exp: 1000 }
-          ]
-        },
-        Freyja: {
-          emoji: '🔥',
-          stats: { STR: 10, MAG: 18, END: 11, AGI: 14 },
-          skills: [
-            { name: 'Dia ❤️', type: 'Healing', sp: 4, power: 50, target: 'single', exp: 0 },
-            { name: 'Agi 🔥', type: 'Fire', sp: 6, power: 40, target: 'single', exp: 0 },
-            { name: 'Diarama ❤️❤️', type: 'Healing', sp: 8, power: 100, target: 'single', exp: 500 },
-            { name: 'Maragi 🔥🔥', type: 'Fire', sp: 12, power: 60, target: 'all', exp: 500 },
-            { name: 'Mediarama ❤️❤️❤️', type: 'Healing', sp: 16, power: 80, target: 'all', exp: 1000 },
-            { name: 'Agilao 🔥🔥', type: 'Fire', sp: 14, power: 100, target: 'single', exp: 1000 }
-          ]
-        },
-        Eos: {
-          emoji: '💨',
-          stats: { STR: 8, MAG: 14, END: 10, AGI: 16 },
-          skills: [
-            { name: 'Garu 💨', type: 'Wind', sp: 6, power: 40, target: 'single', exp: 0 },
-            { name: 'Magaru 💨💨', type: 'Wind', sp: 12, power: 60, target: 'all', exp: 0 },
-            { name: 'Dia ❤️', type: 'Healing', sp: 4, power: 50, target: 'single', exp: 0 }
-          ]
-        }
-      };
+const personas = {
+  Odin: {
+    emoji: '⚡',
+    stats: { STR: 14, MAG: 16, END: 12, AGI: 15 },
+    skills: [
+      { name: 'Zio ⚡', type: 'Elec', sp: 6, power: 40, target: 'single', exp: 0, requires: [] },
+      { name: 'Mazio ⚡⚡', type: 'Elec', sp: 14, power: 60, target: 'all', exp: 400, requires: ['Zio ⚡'] },
+      { name: 'Magarudyne ⚡💨', type: 'Elec/Wind', sp: 16, power: 65, target: 'all', exp: 800, requires: ['Mazio ⚡⚡'] },
+      { name: 'Ziodyne ⚡⚡⚡', type: 'Elec', sp: 18, power: 100, target: 'single', exp: 1200, requires: ['Magarudyne ⚡💨'] },
+      { name: 'Wild Spark 🌩️', type: 'Elec', sp: 20, power: 110, target: 'all', exp: 1600, requires: ['Ziodyne ⚡⚡⚡'] },
+      { name: 'Thunder Reign ⚡⚡⚡⚡', type: 'Elec', sp: 24, power: 140, target: 'all', exp: 2000, requires: ['Wild Spark 🌩️'], ultimate: true }
+    ]
+  },
+  Freyja: {
+    emoji: '🔥',
+    stats: { STR: 10, MAG: 18, END: 11, AGI: 14 },
+    skills: [
+      { name: 'Agi 🔥', type: 'Fire', sp: 6, power: 40, target: 'single', exp: 0, requires: [] },
+      { name: 'Maragi 🔥🔥', type: 'Fire', sp: 12, power: 60, target: 'all', exp: 400, requires: ['Agi 🔥'] },
+      { name: 'Diarama ❤️❤️', type: 'Healing', sp: 10, power: 90, target: 'single', exp: 700, requires: ['Maragi 🔥🔥'] },
+      { name: 'Agilao 🔥🔥🔥', type: 'Fire', sp: 16, power: 80, target: 'single', exp: 1000, requires: ['Diarama ❤️❤️'] },
+      { name: 'Samarecarm ✝️', type: 'Revive', sp: 24, power: 0, target: 'single', exp: 1400, requires: ['Agilao 🔥🔥🔥'] },
+      { name: 'Inferno 🔥🔥🔥🔥', type: 'Fire', sp: 22, power: 130, target: 'all', exp: 2000, requires: ['Samarecarm ✝️'], ultimate: true }
+    ]
+  },
+  Eos: {
+    emoji: '💨',
+    stats: { STR: 8, MAG: 14, END: 10, AGI: 16 },
+    skills: [
+      { name: 'Garu 💨', type: 'Wind', sp: 6, power: 40, target: 'single', exp: 0, requires: [] },
+      { name: 'Magaru 💨💨', type: 'Wind', sp: 12, power: 60, target: 'all', exp: 400, requires: ['Garu 💨'] },
+      { name: 'Rebellion ⚔️', type: 'Buff', sp: 10, power: 0, target: 'party', exp: 700, requires: ['Magaru 💨💨'] },
+      { name: 'Garula 💨💨💨', type: 'Wind', sp: 16, power: 80, target: 'single', exp: 1000, requires: ['Rebellion ⚔️'] },
+      { name: 'Wind Cutter 🌪️', type: 'Wind', sp: 20, power: 120, target: 'single', exp: 1500, requires: ['Garula 💨💨💨'] },
+      { name: 'Panta Rhei 💨💨💨💨', type: 'Wind', sp: 24, power: 140, target: 'all', exp: 2000, requires: ['Wind Cutter 🌪️'], ultimate: true }
+    ]
+  }
+};
 
       const party = {
-        Joker: { hp: 100, maxHP: 100, sp: 50, maxSP: 50, exp: 0, persona: 'Odin' },
+        Protag: { hp: 100, maxHP: 100, sp: 50, maxSP: 50, exp: 0, persona: 'Odin' },
         Dolores: { hp: 80, maxHP: 80, sp: 40, maxSP: 40, persona: 'Eos' }
       };
 
       const inventory = { Medicine: 0, Gemstone: 0 };
 
       let enemies = [];
-      let currentTurn = 'Joker';
+      let currentTurn = 'Protag';
       let battleState = {
         knockedDown: [],
         maskBreak: false,
@@ -441,7 +517,7 @@
       const startBattle = document.getElementById('start-battle');
       const personaSelect = document.getElementById('persona-select');
       const skillTree = document.getElementById('skill-tree');
-      const jokerExp = document.getElementById('joker-exp');
+      const protagExp = document.getElementById('protag-exp');
       const partyStats = document.getElementById('party-stats');
       const enemiesDiv = document.getElementById('enemies');
       const battleMessage = document.getElementById('battle-message');
@@ -611,16 +687,16 @@ bgm.volume = 0.5; // 0 ile 1 arasında. İstersen daha da kısabilirsin.
             knockedDown: false
           });
         });
-        party.Joker.persona = personaSelect.value;
-        party.Joker.hp = Math.floor(party.Joker.maxHP * 0.5);
-        party.Joker.sp = Math.floor(party.Joker.maxSP * 0.5);
+        party.Protag.persona = personaSelect.value;
+        party.Protag.hp = Math.floor(party.Protag.maxHP * 0.5);
+        party.Protag.sp = Math.floor(party.Protag.maxSP * 0.5);
         party.Dolores.hp = Math.floor(party.Dolores.maxHP * 0.5);
         party.Dolores.sp = Math.floor(party.Dolores.maxSP * 0.5);
         preparation.classList.add('hidden');
         battle.classList.remove('hidden');
         updateBattleUI();
         battleMessage.textContent = "SHOWTIME!";
-        startPlayerTurn('Joker');
+        startPlayerTurn('Protag');
       });
 
       document.getElementById('attack').addEventListener('click', () => {
@@ -649,9 +725,15 @@ bgm.volume = 0.5; // 0 ile 1 arasında. İstersen daha da kısabilirsin.
         }
       });
       document.getElementById('back-skills').addEventListener('click', () => {
-        skillMenu.classList.add('hidden');
-        battleCommands.classList.remove('hidden');
-      });
+  skillMenu.classList.add('hidden');
+  battleCommands.classList.remove('hidden');
+
+  // Hide persona image when leaving skill menu
+  const personaImg = document.getElementById('persona-summon');
+  personaImg.classList.add('hidden');
+  personaImg.classList.remove('scale-100');
+  personaImg.classList.add('scale-150');
+});
       document.getElementById('back-persona').addEventListener('click', () => {
         personaMenu.classList.add('hidden');
         battleCommands.classList.remove('hidden');
@@ -680,30 +762,70 @@ bgm.volume = 0.5; // 0 ile 1 arasında. İstersen daha da kısabilirsin.
       document.getElementById('return-prep').addEventListener('click', () => {
         victory.classList.add('hidden');
         preparation.classList.remove('hidden');
-        party.Joker.hp = Math.floor(party.Joker.maxHP * 0.5);
-        party.Joker.sp = Math.floor(party.Joker.maxSP * 0.5);
+        party.Protag.hp = Math.floor(party.Protag.maxHP * 0.5);
+        party.Protag.sp = Math.floor(party.Protag.maxSP * 0.5);
         party.Dolores.hp = Math.floor(party.Dolores.maxHP * 0.5);
         party.Dolores.sp = Math.floor(party.Dolores.maxSP * 0.5);
+	gainExp(500); // Zaferden sonra 500 XP kazan
         updateSkillTree();
         updateBattleUI();
       });
 
       // Functions
-      function updateSkillTree() {
-        const persona = personas[personaSelect.value];
-        skillTree.innerHTML = persona.skills.map(skill => `
-          <div class="p5-button inline-block ${party.Joker.exp < skill.exp ? 'disabled' : ''}">
-            ${skill.name} (${skill.sp} SP) ${party.Joker.exp < skill.exp ? `[${skill.exp} EXP]` : ''}
-          </div>
-        `).join('');
-      }
+      let unlockedSkills = [];
+function gainExp(amount) {
+  party.Protag.exp += amount;
+  console.log(`Gained ${amount} EXP. Total: ${party.Protag.exp}`);
+}
 
+
+function updateSkillTree() {
+  const persona = personas[personaSelect.value];
+  skillTree.innerHTML = persona.skills.map(skill => {
+    const isUnlocked = party.Protag.exp >= skill.exp &&
+      (skill.requires || []).every(req => unlockedSkills.includes(req));
+    const isUltimate = skill.ultimate;
+
+    return `
+      <div 
+        class="skill-card relative w-48 h-24 p-4 border-4 
+               ${!isUnlocked ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'} 
+               ${isUltimate ? 'border-yellow-500' : 'border-white'} 
+               bg-black text-white text-lg font-bold transform transition duration-300"
+        data-skill="${skill.name}"
+        data-unlocked="${isUnlocked}"
+        data-ultimate="${isUltimate}"
+        title="${skill.name} - ${skill.type} - ${skill.sp} SP"
+      >
+        ${skill.name}<br>
+        <span class="text-sm font-normal">${skill.sp} SP</span>
+        ${!isUnlocked ? `<div class="absolute bottom-1 right-2 text-xs text-red-500">Locked</div>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  skillTree.querySelectorAll('.skill-card').forEach(card => {
+    if (card.dataset.unlocked === 'true') {
+      card.addEventListener('click', () => {
+        skillTree.querySelectorAll('.skill-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        const selectedSkillName = card.dataset.skill;
+        if (!unlockedSkills.includes(selectedSkillName)) {
+          unlockedSkills.push(selectedSkillName);
+        }
+        party.Protag.selectedSkill = selectedSkillName;
+        console.log("Selected skill:", selectedSkillName);
+      });
+    }
+  });
+}
+    
       function updateBattleUI() {
        partyStats.innerHTML = `
   <div class="p5-border p-2">
-    JOKER ${personas[party.Joker.persona].emoji}: ${party.Joker.hp}/${party.Joker.maxHP} HP | ${party.Joker.sp}/${party.Joker.maxSP} SP | EXP: ${party.Joker.exp}
+    Protag ${personas[party.Protag.persona].emoji}: ${party.Protag.hp}/${party.Protag.maxHP} HP | ${party.Protag.sp}/${party.Protag.maxSP} SP | EXP: ${party.Protag.exp}
     <div class="health-bar-container">
-      <div class="health-bar-fill" style="width: ${Math.floor(party.Joker.hp / party.Joker.maxHP * 100)}%;"></div>
+      <div class="health-bar-fill" style="width: ${Math.floor(party.Protag.hp / party.Protag.maxHP * 100)}%;"></div>
     </div>
   </div>
   <div class="p5-border p-2">
@@ -744,8 +866,8 @@ bgm.volume = 0.5; // 0 ile 1 arasında. İstersen daha da kısabilirsin.
         // Set the sprite image based on who’s turn it is
         if (character === 'Dolores') {
           sprite.src = 'dolores-back.png'; // 🔁 your actual file name
-        } else if (character === 'Joker') {
-          sprite.src = 'joker-back.png'; // 🔁 your actual file name
+        } else if (character === 'Protag') {
+          sprite.src = 'Protag-back.png'; // 🔁 your actual file name
         }
 
         battleCommands.classList.remove('hidden');
@@ -773,28 +895,21 @@ bgm.volume = 0.5; // 0 ile 1 arasında. İstersen daha da kısabilirsin.
         battleCommands.classList.add('hidden');
 	const personaImg = document.getElementById('persona-summon');
 
-// Only show persona if it's Joker's turn
-if (currentTurn === 'Joker') {
-  if (party.Joker.persona === 'Odin') {
+if (currentTurn === 'Protag') {
+  if (party.Protag.persona === 'Odin') {
     personaImg.src = 'odin.png';
-  } else if (party.Joker.persona === 'Freyja') {
+  } else if (party.Protag.persona === 'Freyja') {
     personaImg.src = 'freyja.png';
   }
 
   personaImg.classList.remove('hidden');
   personaImg.classList.remove('scale-150');
   personaImg.classList.add('scale-100');
-
-  setTimeout(() => {
-    personaImg.classList.add('hidden');
-    personaImg.classList.remove('scale-100');
-    personaImg.classList.add('scale-150');
-  }, 1000);
 }
 
         skillMenu.classList.remove('hidden');
-        const persona = personas[currentTurn === 'Joker' ? party.Joker.persona : 'Eos'];
-        const skills = currentTurn === 'Joker' ? persona.skills.filter(skill => party.Joker.exp >= skill.exp) : persona.skills;
+        const persona = personas[currentTurn === 'Protag' ? party.Protag.persona : 'Eos'];
+        const skills = currentTurn === 'Protag' ? persona.skills.filter(skill => party.Protag.exp >= skill.exp) : persona.skills;
         skillList.innerHTML = skills.map(skill => `
           <button class="skill p5-button ${party[currentTurn].sp < skill.sp ? 'disabled' : ''}" data-skill="${skill.name}">
             ${skill.name} (${skill.sp} SP)
@@ -830,14 +945,14 @@ if (currentTurn === 'Joker') {
         `).join('');
         personaList.querySelectorAll('.persona').forEach(button => {
           button.addEventListener('click', () => {
-            party.Joker.persona = button.dataset.persona;
-            battleMessage.textContent = `SUMMONED ${party.Joker.persona.toUpperCase()}!`;
+            party.Protag.persona = button.dataset.persona;
+            battleMessage.textContent = `SUMMONED ${party.Protag.persona.toUpperCase()}!`;
             const personaImg = document.getElementById('persona-summon');
 
 // Set image source based on the selected persona
-if (party.Joker.persona === 'Odin') {
+if (party.Protag.persona === 'Odin') {
   personaImg.src = 'odin.png'; // Change to your file name
-} else if (party.Joker.persona === 'Freyja') {
+} else if (party.Protag.persona === 'Freyja') {
   personaImg.src = 'freyja.png'; // Change to your file name
 }
 
@@ -846,13 +961,10 @@ personaImg.classList.remove('hidden');
 personaImg.classList.remove('scale-150');
 personaImg.classList.add('scale-100'); // Make sure to define .scale-100 in CSS
 
-// Hide it after 1 second
-setTimeout(() => {
-  personaImg.classList.add('hidden');
-  personaImg.classList.remove('scale-100');
-  personaImg.classList.add('scale-150');
-}, 1000);
 
+personaImg.classList.remove('hidden');
+personaImg.classList.remove('scale-150');
+personaImg.classList.add('scale-100');
  personaMenu.classList.add('hidden');
             endTurn();
           });
@@ -949,29 +1061,38 @@ setTimeout(() => {
 
       function performSkill(skillName, target) {
         playSound('attack');
-	// Summon effect if Joker uses the skill
-if (currentTurn === 'Joker') {
+
+	// Summon effect if Protag uses the skill
+if (currentTurn === 'Protag') {
   const personaImg = document.getElementById('persona-summon');
-  if (party.Joker.persona === 'Odin') {
+
+  // Set the image source
+  if (party.Protag.persona === 'Odin') {
     personaImg.src = 'odin.png';
-  } else if (party.Joker.persona === 'Freyja') {
+  } else if (party.Protag.persona === 'Freyja') {
     personaImg.src = 'freyja.png';
   }
 
+  // Show and reset scale
   personaImg.classList.remove('hidden');
   personaImg.classList.remove('scale-150');
   personaImg.classList.add('scale-100');
 
+  // Restart animation by forcing reflow
+  void personaImg.offsetWidth;
+
+  // Play the attack animation
+  personaImg.classList.add('attack-move');
+
+  // Hide after animation
   setTimeout(() => {
     personaImg.classList.add('hidden');
-    personaImg.classList.remove('scale-100');
-    personaImg.classList.add('scale-150');
-  }, 1000);
+    personaImg.classList.remove('attack-move');
+  }, 600);
 }
-
         const persona = personas[party[currentTurn].persona];
         const skill = persona.skills.find(s => s.name === skillName);
-        if (party[currentTurn].sp < skill.sp || (currentTurn === 'Joker' && party.Joker.exp < skill.exp)) return;
+        if (party[currentTurn].sp < skill.sp || (currentTurn === 'Protag' && party.Protag.exp < skill.exp)) return;
         party[currentTurn].sp -= skill.sp;
         if (skill.type === 'Healing') {
           const targetChar = party[target];
@@ -980,6 +1101,7 @@ if (currentTurn === 'Joker') {
         } else {
           const targets = target === 'all' ? enemies : [enemies.find(e => e.name === target)];
           targets.forEach(enemy => {
+
             let damage = skill.power;
             let message = `<span class="p5-starburst">${skillName.toUpperCase()}!</span> ${currentTurn} TARGETS ${enemy.name}! `;
 if (enemy.hp <= 0) return;
@@ -1012,10 +1134,7 @@ if (isDrain) {
   message += `${damage} DAMAGE!`;
 }
 
-            if (!enemy.drain && !enemy.repel) {
-              enemy.hp = Math.max(0, enemy.hp - damage);
-              message += `${damage} DAMAGE!`;
-            }
+
             battleMessage.innerHTML = message;
             checkKnockDown(enemy);
           });
@@ -1057,7 +1176,7 @@ if (isDrain) {
           endBattle();
           return;
         }
-        if (currentTurn === 'Joker') {
+        if (currentTurn === 'Protag') {
           startPlayerTurn('Dolores');
         } else {
           enemyTurn();
@@ -1075,7 +1194,7 @@ if (isDrain) {
           }
           const enemy = aliveEnemies[Math.floor(Math.random() * aliveEnemies.length)];
           const damage = 15;
-          const target = Math.random() < 0.5 ? 'Joker' : 'Dolores';
+          const target = Math.random() < 0.5 ? 'Protag' : 'Dolores';
           if (party[target].hp > 0) {
             playSound('enemyHit');
             party[target].hp = Math.max(0, party[target].hp - damage);
@@ -1084,9 +1203,9 @@ if (isDrain) {
             battleMessage.innerHTML = `<span class="p5-starburst">ENEMY STRIKE!</span> ${enemy.name} ATTACKS, BUT ${target} IS DOWN!`;
           }
           updateBattleUI();
-          if (party.Joker.hp <= 0 && party.Dolores.hp <= 0) {
+          if (party.Protag.hp <= 0 && party.Dolores.hp <= 0) {
             battleMessage.textContent = "GAME OVER! RUN RESET!";
-            party.Joker.exp = 0;
+            party.Protag.exp = 0;
             setTimeout(() => {
               battle.classList.add('hidden');
               preparation.classList.remove('hidden');
@@ -1094,7 +1213,7 @@ if (isDrain) {
               resetBattle();
             }, 1000);
           } else {
-            startPlayerTurn('Joker');
+            startPlayerTurn('Protag');
           }
         }, 500);
       }
@@ -1112,7 +1231,7 @@ if (isDrain) {
       }
 
       function endBattle() {
-        party.Joker.exp += 250;
+        party.Protag.exp += 250;
         inventory.Medicine += 2;
         inventory.Gemstone += 1;
         updateBattleUI();
@@ -1123,13 +1242,13 @@ if (isDrain) {
       }
 
       function resetBattle() {
-        party.Joker.hp = Math.floor(party.Joker.maxHP * 0.5);
-        party.Joker.sp = Math.floor(party.Joker.maxSP * 0.5);
+        party.Protag.hp = Math.floor(party.Protag.maxHP * 0.5);
+        party.Protag.sp = Math.floor(party.Protag.maxSP * 0.5);
         party.Dolores.hp = Math.floor(party.Dolores.maxHP * 0.5);
         party.Dolores.sp = Math.floor(party.Dolores.maxSP * 0.5);
         enemies = [];
         battleState = { knockedDown: [], maskBreak: false, turnCount: 0, oneMore: false, oneMoreUsed: new Set() };
-        currentTurn = 'Joker';
+        currentTurn = 'Protag';
       }
 
       // Initialize
